@@ -1,0 +1,111 @@
+"""
+These endpoints are what you register as "Server Tools" / "Webhook Tools"
+in the ElevenLabs agent configuration. During a live call, the agent decides
+to call one of these (e.g. the user says "book me Thursday at 2pm") and
+ElevenLabs sends an HTTP request here with parameters it extracted from
+the conversation.
+
+Security: ElevenLabs lets you attach custom headers to each tool's outgoing
+request. We check for a shared-secret header so random requests can't hit
+these endpoints and mess with the calendar.
+"""
+import logging
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+
+from app import calendar_service, email_service
+from app.config import settings
+from app.schemas import (
+    CreateEventRequest,
+    DeleteEventRequest,
+    ListEventsRequest,
+    UpdateEventRequest,
+)
+
+logger = logging.getLogger("tools")
+
+router = APIRouter(prefix="/tools", tags=["elevenlabs-tools"])
+
+
+def verify_webhook_secret(x_webhook_secret: str = Header(default="")) -> None:
+    if x_webhook_secret != settings.tool_webhook_secret:
+        raise HTTPException(status_code=401, detail="Invalid webhook secret")
+
+
+@router.post("/list-events", dependencies=[Depends(verify_webhook_secret)])
+def list_events(payload: ListEventsRequest):
+    logger.info("list-events payload=%s", payload.model_dump())
+    try:
+        events = calendar_service.list_events(payload.start_iso, payload.end_iso, provider=payload.provider)
+        return {"events": events, "count": len(events)}
+    except Exception as e:
+        logger.exception("list-events failed")
+        raise HTTPException(status_code=400, detail=f"{type(e).__name__}: {e}")
+
+
+@router.post("/create-event", dependencies=[Depends(verify_webhook_secret)])
+def create_event(payload: CreateEventRequest):
+    logger.info("create-event payload=%s", payload.model_dump())
+    try:
+        result = calendar_service.create_event(
+            summary=payload.summary,
+            start_iso=payload.start_iso,
+            end_iso=payload.end_iso,
+            description=payload.description,
+            location=payload.location,
+            provider=payload.provider,
+        )
+        email_service.send_booking_confirmation(
+            summary=payload.summary,
+            start_iso=payload.start_iso,
+            end_iso=payload.end_iso,
+            location=payload.location,
+        )
+        return {"status": "created", **result}
+    except Exception as e:
+        logger.exception("create-event failed")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/update-event", dependencies=[Depends(verify_webhook_secret)])
+def update_event(payload: UpdateEventRequest):
+    logger.info("update-event payload=%s", payload.model_dump())
+    try:
+        result = calendar_service.update_event(
+            uid=payload.uid,
+            summary=payload.summary,
+            start_iso=payload.start_iso,
+            end_iso=payload.end_iso,
+            description=payload.description,
+            location=payload.location,
+            provider=payload.provider,
+        )
+        email_service.send_update_confirmation(
+            uid=payload.uid,
+            summary=payload.summary,
+            start_iso=payload.start_iso,
+            end_iso=payload.end_iso,
+            location=payload.location,
+        )
+        return result
+    except ValueError as e:
+        logger.exception("update-event failed")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("update-event failed")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/delete-event", dependencies=[Depends(verify_webhook_secret)])
+def delete_event(payload: DeleteEventRequest):
+    logger.info("delete-event payload=%s", payload.model_dump())
+    try:
+        result = calendar_service.delete_event(uid=payload.uid, provider=payload.provider)
+        email_service.send_cancellation_confirmation(uid=payload.uid)
+        return result
+    except ValueError as e:
+        logger.exception("delete-event failed")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception("delete-event failed")
+        raise HTTPException(status_code=400, detail=str(e))

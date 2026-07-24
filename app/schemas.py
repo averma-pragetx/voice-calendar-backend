@@ -1,0 +1,42 @@
+from pydantic import BaseModel, Field
+
+
+# ---------- Tool webhook schemas (called BY ElevenLabs, mid-conversation) ----------
+
+class ListEventsRequest(BaseModel):
+    start_iso: str = Field(..., description="Start of the search window, ISO 8601, e.g. 2026-07-25T00:00:00")
+    end_iso: str = Field(..., description="End of the search window, ISO 8601, e.g. 2026-07-26T00:00:00")
+    provider: str | None = Field(None, description="'apple' or 'google'; defaults to CALENDAR_PROVIDER if omitted")
+
+
+class CreateEventRequest(BaseModel):
+    summary: str = Field(..., description="Short title, e.g. 'Plumbing appointment - leaky faucet'")
+    start_iso: str = Field(..., description="Appointment start, ISO 8601, e.g. 2026-07-25T14:00:00")
+    end_iso: str = Field(..., description="Appointment end, ISO 8601, e.g. 2026-07-25T15:00:00")
+    description: str = Field("", description="Extra notes, e.g. issue details")
+    location: str = Field("", description="Address or location of the appointment")
+    provider: str | None = Field(None, description="'apple' or 'google'; defaults to CALENDAR_PROVIDER if omitted")
+
+
+class UpdateEventRequest(BaseModel):
+    uid: str = Field(..., description="The unique id of the event to update (returned from create/list)")
+    summary: str | None = None
+    start_iso: str | None = None
+    end_iso: str | None = None
+    description: str | None = None
+    location: str | None = None
+    provider: str | None = Field(None, description="'apple' or 'google'; defaults to CALENDAR_PROVIDER if omitted")
+
+
+class DeleteEventRequest(BaseModel):
+    uid: str = Field(..., description="The unique id of the event to delete")
+    provider: str | None = Field(None, description="'apple' or 'google'; defaults to CALENDAR_PROVIDER if omitted")
+
+
+# ---------- Call trigger schema (called BY your backend, TO ElevenLabs) ----------
+
+class TriggerCallRequest(BaseModel):
+    to_number: str = Field(..., description="Phone number to call, E.164 format e.g. +919812345678")
+    customer_name: str | None = Field(None, description="Passed to the agent as a dynamic variable")
+    reason: str | None = Field(None, description="e.g. 'Follow-up on plumbing quote request', passed as dynamic variable")
+    provider: str | None = Field(None, description="'apple' or 'google'; picks which agent places the call. Defaults to CALENDAR_PROVIDER if omitted")
