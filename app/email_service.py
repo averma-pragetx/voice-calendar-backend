@@ -79,8 +79,13 @@ def _send(subject: str, body: str, ics_bytes: bytes | None = None, ics_method: s
                 server.starttls()
                 server.login(settings.apple_id, settings.apple_app_specific_password)
                 server.send_message(msg)
+
+        logger.info("Email sent: %s -> %s", subject, settings.booking_notification_email)
     except Exception:
-        logger.exception("Failed to send email: %s", subject)
+        logger.exception(
+            "Failed to send email: subject=%s smtp_host=%s smtp_port=%s to=%s",
+            subject, settings.smtp_host, settings.smtp_port, settings.booking_notification_email,
+        )
 
 
 def send_booking_confirmation(uid: str, summary: str, start_iso: str, end_iso: str, location: str = "") -> None:
