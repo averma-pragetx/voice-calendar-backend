@@ -9,14 +9,49 @@ from __future__ import annotations
 
 import logging
 import smtplib
+from datetime import datetime
 from email.message import EmailMessage
+from zoneinfo import ZoneInfo
+
+from icalendar import Calendar as ICalendar
+from icalendar import Event as IEvent
 
 from app.config import settings
 
 logger = logging.getLogger("email_service")
 
 
-def _send(subject: str, body: str) -> None:
+def _parse_dt(value: str) -> datetime:
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo(settings.default_timezone))
+    return dt
+
+
+def _build_ics(uid: str, summary: str, start_iso: str, end_iso: str, location: str = "", method: str = "REQUEST", status: str = "CONFIRMED") -> bytes:
+    """Builds a .ics invite so mail clients offer an 'Add to Calendar' action."""
+    ical = ICalendar()
+    ical.add("prodid", "-//Voice Calendar Agent//EN")
+    ical.add("version", "2.0")
+    ical.add("method", method)
+
+    vevent = IEvent()
+    vevent.add("uid", uid)
+    vevent.add("summary", summary)
+    vevent.add("dtstart", _parse_dt(start_iso))
+    vevent.add("dtend", _parse_dt(end_iso))
+    vevent.add("dtstamp", datetime.now(ZoneInfo("UTC")))
+    vevent.add("status", status)
+    if location:
+        vevent.add("location", location)
+    vevent.add("organizer", f"mailto:{settings.apple_id}")
+    vevent.add("attendee", f"mailto:{settings.booking_notification_email}")
+
+    ical.add_component(vevent)
+    return ical.to_ical()
+
+
+def _send(subject: str, body: str, ics_bytes: bytes | None = None, ics_method: str = "REQUEST") -> None:
     if not settings.booking_notification_email:
         return
     try:
@@ -26,7 +61,16 @@ def _send(subject: str, body: str) -> None:
         msg["To"] = settings.booking_notification_email
         msg.set_content(body)
 
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+        if ics_bytes is not None:
+            msg.add_attachment(
+                ics_bytes,
+                maintype="text",
+                subtype="calendar",
+                filename="invite.ics",
+                params={"method": ics_method, "name": "invite.ics"},
+            )
+
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
             server.starttls()
             server.login(settings.apple_id, settings.apple_app_specific_password)
             server.send_message(msg)
@@ -34,7 +78,7 @@ def _send(subject: str, body: str) -> None:
         logger.exception("Failed to send email: %s", subject)
 
 
-def send_booking_confirmation(summary: str, start_iso: str, end_iso: str, location: str = "") -> None:
+def send_booking_confirmation(uid: str, summary: str, start_iso: str, end_iso: str, location: str = "") -> None:
     body = (
         f"Your appointment has been booked.\n\n"
         f"Summary: {summary}\n"
@@ -42,7 +86,8 @@ def send_booking_confirmation(summary: str, start_iso: str, end_iso: str, locati
         f"End: {end_iso}\n"
         f"Location: {location or '-'}\n"
     )
-    _send("Booking Confirmation", body)
+    ics = _build_ics(uid, summary, start_iso, end_iso, location, method="REQUEST", status="CONFIRMED")
+    _send("Booking Confirmation", body, ics_bytes=ics, ics_method="REQUEST")
 
 
 def send_update_confirmation(uid: str, summary: str | None, start_iso: str | None, end_iso: str | None, location: str | None = None) -> None:
@@ -54,7 +99,10 @@ def send_update_confirmation(uid: str, summary: str | None, start_iso: str | Non
         f"End: {end_iso or '-'}\n"
         f"Location: {location or '-'}\n"
     )
-    _send("Booking Update Confirmation", body)
+    ics = None
+    if summary and start_iso and end_iso:
+        ics = _build_ics(uid, summary, start_iso, end_iso, location or "", method="REQUEST", status="CONFIRMED")
+    _send("Booking Update Confirmation", body, ics_bytes=ics, ics_method="REQUEST")
 
 
 def send_cancellation_confirmation(uid: str) -> None:

@@ -11,7 +11,7 @@ these endpoints and mess with the calendar.
 """
 import logging
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 
 from app import calendar_service, email_service
 from app.config import settings
@@ -44,7 +44,7 @@ def list_events(payload: ListEventsRequest):
 
 
 @router.post("/create-event", dependencies=[Depends(verify_webhook_secret)])
-def create_event(payload: CreateEventRequest):
+def create_event(payload: CreateEventRequest, background_tasks: BackgroundTasks):
     logger.info("create-event payload=%s", payload.model_dump())
     try:
         result = calendar_service.create_event(
@@ -55,7 +55,9 @@ def create_event(payload: CreateEventRequest):
             location=payload.location,
             provider=payload.provider,
         )
-        email_service.send_booking_confirmation(
+        background_tasks.add_task(
+            email_service.send_booking_confirmation,
+            uid=result["uid"],
             summary=payload.summary,
             start_iso=payload.start_iso,
             end_iso=payload.end_iso,
@@ -68,7 +70,7 @@ def create_event(payload: CreateEventRequest):
 
 
 @router.post("/update-event", dependencies=[Depends(verify_webhook_secret)])
-def update_event(payload: UpdateEventRequest):
+def update_event(payload: UpdateEventRequest, background_tasks: BackgroundTasks):
     logger.info("update-event payload=%s", payload.model_dump())
     try:
         result = calendar_service.update_event(
@@ -80,7 +82,8 @@ def update_event(payload: UpdateEventRequest):
             location=payload.location,
             provider=payload.provider,
         )
-        email_service.send_update_confirmation(
+        background_tasks.add_task(
+            email_service.send_update_confirmation,
             uid=payload.uid,
             summary=payload.summary,
             start_iso=payload.start_iso,
@@ -97,11 +100,11 @@ def update_event(payload: UpdateEventRequest):
 
 
 @router.post("/delete-event", dependencies=[Depends(verify_webhook_secret)])
-def delete_event(payload: DeleteEventRequest):
+def delete_event(payload: DeleteEventRequest, background_tasks: BackgroundTasks):
     logger.info("delete-event payload=%s", payload.model_dump())
     try:
         result = calendar_service.delete_event(uid=payload.uid, provider=payload.provider)
-        email_service.send_cancellation_confirmation(uid=payload.uid)
+        background_tasks.add_task(email_service.send_cancellation_confirmation, uid=payload.uid)
         return result
     except ValueError as e:
         logger.exception("delete-event failed")
