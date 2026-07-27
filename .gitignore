@@ -3,4 +3,5 @@
 venv
 apple_calendar_voice_agent_tools.md
 scripts/client_secret.json
-backend/app/__pycache__
+app/__pycache__
+app/routers/__pycache__
