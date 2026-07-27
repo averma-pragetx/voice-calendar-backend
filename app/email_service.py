@@ -70,10 +70,15 @@ def _send(subject: str, body: str, ics_bytes: bytes | None = None, ics_method: s
                 params={"method": ics_method, "name": "invite.ics"},
             )
 
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
-            server.starttls()
-            server.login(settings.apple_id, settings.apple_app_specific_password)
-            server.send_message(msg)
+        if settings.smtp_port == 465:
+            with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+                server.login(settings.apple_id, settings.apple_app_specific_password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+                server.starttls()
+                server.login(settings.apple_id, settings.apple_app_specific_password)
+                server.send_message(msg)
     except Exception:
         logger.exception("Failed to send email: %s", subject)
 
