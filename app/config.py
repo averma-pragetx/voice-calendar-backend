@@ -33,9 +33,11 @@ class Settings(BaseSettings):
     # --- Security for the webhook tool endpoints ElevenLabs will call mid-conversation ---
     tool_webhook_secret: str
 
-    # --- Booking confirmation emails (sent via iCloud Mail SMTP, reuses Apple credentials) ---
-    smtp_host: str = "smtp.mail.me.com"
+    # --- Booking confirmation emails (sent via Gmail SMTP) ---
+    smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
+    google_sender_id: str = ""  # e.g. someone@gmail.com
+    google_sender_app_specific_password: str = ""  # generated at myaccount.google.com/apppasswords
     booking_notification_email: str = ""  # hardcoded recipient (the customer/receiver)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")

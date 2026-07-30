@@ -1,6 +1,6 @@
 """
-Sends booking confirmation emails over iCloud Mail SMTP, reusing the same
-Apple ID + app-specific password already used for CalDAV auth.
+Sends booking confirmation emails over Gmail SMTP, using GOOGLE_SENDER_ID +
+its app-specific password.
 
 Best-effort only: a failed send is logged and swallowed, never raised, so
 it can never fail or roll back the calendar operation it follows.
@@ -44,7 +44,7 @@ def _build_ics(uid: str, summary: str, start_iso: str, end_iso: str, location: s
     vevent.add("status", status)
     if location:
         vevent.add("location", location)
-    vevent.add("organizer", f"mailto:{settings.apple_id}")
+    vevent.add("organizer", f"mailto:{settings.google_sender_id}")
     vevent.add("attendee", f"mailto:{settings.booking_notification_email}")
 
     ical.add_component(vevent)
@@ -57,7 +57,7 @@ def _send(subject: str, body: str, ics_bytes: bytes | None = None, ics_method: s
     try:
         msg = EmailMessage()
         msg["Subject"] = subject
-        msg["From"] = settings.apple_id
+        msg["From"] = settings.google_sender_id
         msg["To"] = settings.booking_notification_email
         msg.set_content(body)
 
@@ -72,12 +72,12 @@ def _send(subject: str, body: str, ics_bytes: bytes | None = None, ics_method: s
 
         if settings.smtp_port == 465:
             with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=60) as server:
-                server.login(settings.apple_id, settings.apple_app_specific_password)
+                server.login(settings.google_sender_id, settings.google_sender_app_specific_password)
                 server.send_message(msg)
         else:
             with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=60) as server:
                 server.starttls()
-                server.login(settings.apple_id, settings.apple_app_specific_password)
+                server.login(settings.google_sender_id, settings.google_sender_app_specific_password)
                 server.send_message(msg)
 
         logger.info("Email sent: %s -> %s", subject, settings.booking_notification_email)
