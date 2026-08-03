@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     twilio_auth_token: str = ""
     twilio_from_number: str = ""  # Twilio number SMS is sent from, E.164
     twilio_status_callback_url: str = ""  # e.g. https://voice-calendar-backend.pragetx.ai/api/sms/webhook
+    default_sms_country_code: str = "+91"  # prepended when phone_number arrives without a '+' (e.g. raw caller ID)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

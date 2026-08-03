@@ -18,6 +18,15 @@ logger = logging.getLogger("sms_service")
 TWILIO_MESSAGES_URL = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
 
 
+def _to_e164(raw: str) -> str:
+    """Twilio requires E.164 (+<country><number>); raw caller IDs / LLM-filled
+    params sometimes arrive as a bare local number, e.g. '9691169650'."""
+    digits = "".join(ch for ch in raw if ch.isdigit() or ch == "+")
+    if digits.startswith("+"):
+        return digits
+    return settings.default_sms_country_code + digits
+
+
 def _send(to_number: str | None, body: str) -> None:
     if not to_number:
         logger.warning("SMS skipped: no to_number (phone_number missing from tool payload)")
@@ -25,6 +34,7 @@ def _send(to_number: str | None, body: str) -> None:
     if not settings.twilio_account_sid:
         logger.warning("SMS skipped: TWILIO_ACCOUNT_SID not configured")
         return
+    to_number = _to_e164(to_number)
     try:
         url = TWILIO_MESSAGES_URL.format(sid=settings.twilio_account_sid)
         data = {"From": settings.twilio_from_number, "To": to_number, "Body": body}
