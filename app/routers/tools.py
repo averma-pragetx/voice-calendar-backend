@@ -13,7 +13,7 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 
-from app import calendar_service, email_service
+from app import calendar_service, email_service, sms_service
 from app.config import settings
 from app.schemas import (
     CreateEventRequest,
@@ -63,6 +63,14 @@ def create_event(payload: CreateEventRequest, background_tasks: BackgroundTasks)
             end_iso=payload.end_iso,
             location=payload.location,
         )
+        background_tasks.add_task(
+            sms_service.send_booking_confirmation,
+            to_number=payload.phone_number,
+            summary=payload.summary,
+            start_iso=payload.start_iso,
+            end_iso=payload.end_iso,
+            location=payload.location,
+        )
         return {"status": "created", **result}
     except Exception as e:
         logger.exception("create-event failed")
@@ -90,6 +98,14 @@ def update_event(payload: UpdateEventRequest, background_tasks: BackgroundTasks)
             end_iso=payload.end_iso,
             location=payload.location,
         )
+        background_tasks.add_task(
+            sms_service.send_update_confirmation,
+            to_number=payload.phone_number,
+            summary=payload.summary,
+            start_iso=payload.start_iso,
+            end_iso=payload.end_iso,
+            location=payload.location,
+        )
         return result
     except ValueError as e:
         logger.exception("update-event failed")
@@ -105,6 +121,7 @@ def delete_event(payload: DeleteEventRequest, background_tasks: BackgroundTasks)
     try:
         result = calendar_service.delete_event(uid=payload.uid, provider=payload.provider)
         background_tasks.add_task(email_service.send_cancellation_confirmation, uid=payload.uid)
+        background_tasks.add_task(sms_service.send_cancellation_confirmation, to_number=payload.phone_number)
         return result
     except ValueError as e:
         logger.exception("delete-event failed")

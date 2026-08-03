@@ -16,6 +16,7 @@ class CreateEventRequest(BaseModel):
     description: str = Field("", description="Extra notes, e.g. issue details")
     location: str = Field("", description="Address or location of the appointment")
     provider: str | None = Field(None, description="'apple' or 'google'; defaults to CALENDAR_PROVIDER if omitted")
+    phone_number: str | None = Field(None, description="Caller's phone number (dynamic variable from call trigger), used as SMS recipient")
 
 
 class UpdateEventRequest(BaseModel):
@@ -26,11 +27,13 @@ class UpdateEventRequest(BaseModel):
     description: str | None = None
     location: str | None = None
     provider: str | None = Field(None, description="'apple' or 'google'; defaults to CALENDAR_PROVIDER if omitted")
+    phone_number: str | None = Field(None, description="Caller's phone number (dynamic variable from call trigger), used as SMS recipient")
 
 
 class DeleteEventRequest(BaseModel):
     uid: str = Field(..., description="The unique id of the event to delete")
     provider: str | None = Field(None, description="'apple' or 'google'; defaults to CALENDAR_PROVIDER if omitted")
+    phone_number: str | None = Field(None, description="Caller's phone number (dynamic variable from call trigger), used as SMS recipient")
 
 
 # ---------- Call trigger schema (called BY your backend, TO ElevenLabs) ----------

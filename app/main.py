@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import calendar_view, calls, tools
+from app.routers import calendar_view, calls, sms, tools
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(calls.router)
 app.include_router(tools.router)
 app.include_router(calendar_view.router)
+app.include_router(sms.router)
 
 
 @app.get("/health")

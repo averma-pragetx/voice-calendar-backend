@@ -28,18 +28,18 @@ async def trigger_call(payload: TriggerCallRequest):
         raise HTTPException(status_code=400, detail=f"Unknown provider '{provider}', expected one of {list(_AGENTS)}")
     agent_id, agent_phone_number_id = _AGENTS[provider]
 
-    # dynamic_variables = {}
-    # if payload.customer_name:
-    #     dynamic_variables["customer_name"] = payload.customer_name
-    # if payload.reason:
-    #     dynamic_variables["reason"] = payload.reason
+    dynamic_variables = {"phone_number": payload.to_number}
+    if payload.customer_name:
+        dynamic_variables["customer_name"] = payload.customer_name
+    if payload.reason:
+        dynamic_variables["reason"] = payload.reason
 
     body = {
         "agent_id": agent_id,
         "agent_phone_number_id": agent_phone_number_id,
         "to_number": payload.to_number,
         "conversation_initiation_client_data": {
-            # "dynamic_variables": dynamic_variables
+            "dynamic_variables": dynamic_variables
         },
     }
 

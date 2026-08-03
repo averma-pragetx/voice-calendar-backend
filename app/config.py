@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     google_sender_app_specific_password: str = ""  # generated at myaccount.google.com/apppasswords
     booking_notification_email: str = ""  # hardcoded recipient (the customer/receiver)
 
+    # --- Booking confirmation SMS (sent via Twilio) ---
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""  # Twilio number SMS is sent from, E.164
+    twilio_status_callback_url: str = ""  # e.g. https://voice-calendar-backend.pragetx.ai/api/sms/webhook
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

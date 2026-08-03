@@ -1,0 +1,56 @@
+"""
+Sends booking confirmation SMS via Twilio's REST API (plain httpx POST, no
+twilio SDK needed since httpx is already a dependency).
+
+Best-effort only: a failed send is logged and swallowed, never raised, so
+it can never fail or roll back the calendar operation it follows.
+"""
+from __future__ import annotations
+
+import logging
+
+import httpx
+
+from app.config import settings
+
+logger = logging.getLogger("sms_service")
+
+TWILIO_MESSAGES_URL = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
+
+
+def _send(to_number: str | None, body: str) -> None:
+    if not to_number or not settings.twilio_account_sid:
+        return
+    try:
+        url = TWILIO_MESSAGES_URL.format(sid=settings.twilio_account_sid)
+        data = {"From": settings.twilio_from_number, "To": to_number, "Body": body}
+        if settings.twilio_status_callback_url:
+            data["StatusCallback"] = settings.twilio_status_callback_url
+        resp = httpx.post(
+            url,
+            data=data,
+            auth=(settings.twilio_account_sid, settings.twilio_auth_token),
+            timeout=30,
+        )
+        resp.raise_for_status()
+        logger.info("SMS sent -> %s", to_number)
+    except Exception:
+        logger.exception("Failed to send SMS to=%s", to_number)
+
+
+def send_booking_confirmation(to_number: str | None, summary: str, start_iso: str, end_iso: str, location: str = "") -> None:
+    body = f"Appointment booked: {summary}\nStart: {start_iso}\nEnd: {end_iso}"
+    if location:
+        body += f"\nLocation: {location}"
+    _send(to_number, body)
+
+
+def send_update_confirmation(to_number: str | None, summary: str | None, start_iso: str | None, end_iso: str | None, location: str | None = None) -> None:
+    body = f"Appointment updated: {summary or '-'}\nStart: {start_iso or '-'}\nEnd: {end_iso or '-'}"
+    if location:
+        body += f"\nLocation: {location}"
+    _send(to_number, body)
+
+
+def send_cancellation_confirmation(to_number: str | None) -> None:
+    _send(to_number, "Your appointment has been cancelled.")
