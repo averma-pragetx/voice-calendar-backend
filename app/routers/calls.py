@@ -8,6 +8,7 @@ linked to your agent (Phone Numbers tab in ElevenLabs dashboard).
 import httpx
 from fastapi import APIRouter, HTTPException
 
+from app import call_context
 from app.config import settings
 from app.schemas import TriggerCallRequest
 
@@ -27,6 +28,8 @@ async def trigger_call(payload: TriggerCallRequest):
     if provider not in _AGENTS:
         raise HTTPException(status_code=400, detail=f"Unknown provider '{provider}', expected one of {list(_AGENTS)}")
     agent_id, agent_phone_number_id = _AGENTS[provider]
+
+    call_context.set_last_to_number(payload.to_number)
 
     dynamic_variables = {"phone_number": payload.to_number}
     if payload.customer_name:
