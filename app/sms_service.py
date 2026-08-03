@@ -19,23 +19,32 @@ TWILIO_MESSAGES_URL = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages
 
 
 def _send(to_number: str | None, body: str) -> None:
-    if not to_number or not settings.twilio_account_sid:
+    if not to_number:
+        logger.warning("SMS skipped: no to_number (phone_number missing from tool payload)")
+        return
+    if not settings.twilio_account_sid:
+        logger.warning("SMS skipped: TWILIO_ACCOUNT_SID not configured")
         return
     try:
         url = TWILIO_MESSAGES_URL.format(sid=settings.twilio_account_sid)
         data = {"From": settings.twilio_from_number, "To": to_number, "Body": body}
         if settings.twilio_status_callback_url:
             data["StatusCallback"] = settings.twilio_status_callback_url
+        logger.info("SMS sending -> %s from=%s", to_number, settings.twilio_from_number)
         resp = httpx.post(
             url,
             data=data,
             auth=(settings.twilio_account_sid, settings.twilio_auth_token),
             timeout=30,
         )
+        if resp.status_code >= 400:
+            logger.error("SMS failed to=%s status=%s body=%s", to_number, resp.status_code, resp.text)
+            return
         resp.raise_for_status()
-        logger.info("SMS sent -> %s", to_number)
+        sid = resp.json().get("sid")
+        logger.info("SMS sent -> %s sid=%s", to_number, sid)
     except Exception:
-        logger.exception("Failed to send SMS to=%s", to_number)
+        logger.exception("SMS send raised to=%s", to_number)
 
 
 def send_booking_confirmation(to_number: str | None, summary: str, start_iso: str, end_iso: str, location: str = "") -> None:
