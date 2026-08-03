@@ -62,6 +62,7 @@ def create_event(payload: CreateEventRequest, background_tasks: BackgroundTasks)
             start_iso=payload.start_iso,
             end_iso=payload.end_iso,
             location=payload.location,
+            price_estimate=payload.price_estimate,
         )
         background_tasks.add_task(
             sms_service.send_booking_confirmation,
@@ -70,6 +71,7 @@ def create_event(payload: CreateEventRequest, background_tasks: BackgroundTasks)
             start_iso=payload.start_iso,
             end_iso=payload.end_iso,
             location=payload.location,
+            price_estimate=payload.price_estimate,
         )
         return {"status": "created", **result}
     except Exception as e:

@@ -17,6 +17,7 @@ class CreateEventRequest(BaseModel):
     location: str = Field("", description="Address or location of the appointment")
     provider: str | None = Field(None, description="'apple' or 'google'; defaults to CALENDAR_PROVIDER if omitted")
     phone_number: str | None = Field(None, description="Caller's phone number (dynamic variable from call trigger), used as SMS recipient")
+    price_estimate: str | None = Field(None, description="Spoken price range for the issue, e.g. '$150 to $400', to include in SMS/email confirmation")
 
 
 class UpdateEventRequest(BaseModel):

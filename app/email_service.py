@@ -88,7 +88,7 @@ def _send(subject: str, body: str, ics_bytes: bytes | None = None, ics_method: s
         )
 
 
-def send_booking_confirmation(uid: str, summary: str, start_iso: str, end_iso: str, location: str = "") -> None:
+def send_booking_confirmation(uid: str, summary: str, start_iso: str, end_iso: str, location: str = "", price_estimate: str | None = None) -> None:
     body = (
         f"Your appointment has been booked.\n\n"
         f"Summary: {summary}\n"
@@ -96,6 +96,8 @@ def send_booking_confirmation(uid: str, summary: str, start_iso: str, end_iso: s
         f"End: {end_iso}\n"
         f"Location: {location or '-'}\n"
     )
+    if price_estimate:
+        body += f"Estimated cost: {price_estimate} (technician confirms final price on site)\n"
     ics = _build_ics(uid, summary, start_iso, end_iso, location, method="REQUEST", status="CONFIRMED")
     _send("Booking Confirmation", body, ics_bytes=ics, ics_method="REQUEST")
 

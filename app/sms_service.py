@@ -57,10 +57,12 @@ def _send(to_number: str | None, body: str) -> None:
         logger.exception("SMS send raised to=%s", to_number)
 
 
-def send_booking_confirmation(to_number: str | None, summary: str, start_iso: str, end_iso: str, location: str = "") -> None:
+def send_booking_confirmation(to_number: str | None, summary: str, start_iso: str, end_iso: str, location: str = "", price_estimate: str | None = None) -> None:
     body = f"Appointment booked: {summary}\nStart: {start_iso}\nEnd: {end_iso}"
     if location:
         body += f"\nLocation: {location}"
+    if price_estimate:
+        body += f"\nEstimated cost: {price_estimate} (technician confirms final price on site)"
     _send(to_number, body)
 
 
